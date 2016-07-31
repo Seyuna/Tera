@@ -21,6 +21,7 @@ namespace Tera.Game.Messages
         {
             reader.Skip(4);
             Source = reader.ReadEntityId();
+            if (reader.Version >= 305129) reader.Skip(8);
             Target = reader.ReadEntityId();
 
 
