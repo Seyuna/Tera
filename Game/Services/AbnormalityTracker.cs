@@ -196,11 +196,6 @@ namespace Tera.Game
             DeleteAbnormality(message.Npc, 8888888, message.Time.Ticks);
         }
 
-        public void DeleteAbnormality(SCreatureChangeHp message)
-        {
-            DeleteAbnormality(message.TargetId, 8888889, message.Time.Ticks);
-        }
-
         public void DeleteAbnormality(SDespawnUser message)
         {
             DeleteAbnormality(message.User, message.Time.Ticks);
@@ -235,7 +230,7 @@ namespace Tera.Game
             }
 
             var abnormalities = _abnormalities[target];
-            abnormalities = abnormalities.OrderByDescending(o => o.TimeBeforeApply).ToList();
+            abnormalities = abnormalities.Where(x=>x.Source==EntityTracker.MeterUser.Id || x.Target==EntityTracker.MeterUser.Id).OrderByDescending(o => o.TimeBeforeApply).ToList();
 
             foreach (var abnormality in abnormalities)
             {
