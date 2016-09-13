@@ -66,7 +66,13 @@ namespace Tera.Game
             {"S_BAN_PARTY", typeof(S_BAN_PARTY)},
             {"S_GET_USER_LIST", typeof(S_GET_USER_LIST)},
             {"S_GET_USER_GUILD_LOGO", typeof(S_GET_USER_GUILD_LOGO)},
-            {"S_WHISPER", typeof(S_WHISPER)}
+            {"S_WHISPER", typeof(S_WHISPER)},
+            {"S_TRADE_BROKER_DEAL_SUGGESTED", typeof(S_TRADE_BROKER_DEAL_SUGGESTED)},
+            {"S_OTHER_USER_APPLY_PARTY", typeof(S_OTHER_USER_APPLY_PARTY) },
+            {"S_PRIVATE_CHAT", typeof(S_PRIVATE_CHAT) },
+            {"S_FIN_INTER_PARTY_MATCH", typeof(S_FIN_INTER_PARTY_MATCH) },
+            {"S_MOUNT_VEHICLE_EX", typeof(S_MOUNT_VEHICLE_EX) },
+            {"S_BATTLE_FIELD_ENTRANCE_INFO", typeof(S_BATTLE_FIELD_ENTRANCE_INFO) }
         };
 
         private readonly OpCodeNamer _opCodeNamer;
