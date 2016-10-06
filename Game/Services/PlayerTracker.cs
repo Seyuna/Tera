@@ -77,14 +77,38 @@ namespace Tera.Game
             return _playerById[Tuple.Create(user.ServerId, user.PlayerId)];
         }
 
+        public void UpdateParty(S_BAN_PARTY message)
+        {
+            _currentParty = new List<Tuple<uint, uint>>();
+        }
+
+        public void UpdateParty(S_LEAVE_PARTY m )
+        {
+            _currentParty = new List<Tuple<uint, uint>>();
+        }
+
+        public void UpdateParty(S_LEAVE_PARTY_MEMBER m)
+        {
+            _currentParty.Remove(Tuple.Create(m.ServerId, m.PlayerId));
+        }
+
+        public void UpdateParty(S_BAN_PARTY_MEMBER m)
+        {
+            _currentParty.Remove(Tuple.Create(m.ServerId, m.PlayerId));
+        }
+
+        public void UpdateParty(S_PARTY_MEMBER_LIST m)
+        {
+            _currentParty = m.Party.ConvertAll(x => Tuple.Create(x.ServerId, x.PlayerId));
+        }
+
         public void UpdateParty(ParsedMessage message)
         {
-            message.On<S_BAN_PARTY>(m => _currentParty = new List<Tuple<uint, uint>>());
-            message.On<S_LEAVE_PARTY>(m => _currentParty = new List<Tuple<uint, uint>>());
-            message.On<S_LEAVE_PARTY_MEMBER>(m => _currentParty.Remove(Tuple.Create(m.ServerId, m.PlayerId)));
-            message.On<S_BAN_PARTY_MEMBER>(m => _currentParty.Remove(Tuple.Create(m.ServerId, m.PlayerId)));
-            message.On<S_PARTY_MEMBER_LIST>(
-                m => _currentParty = m.Party.ConvertAll(x => Tuple.Create(x.ServerId, x.PlayerId)));
+            message.On<S_BAN_PARTY>(m => UpdateParty(m));
+            message.On<S_LEAVE_PARTY>(m => UpdateParty(m));
+            message.On<S_LEAVE_PARTY_MEMBER>(m => UpdateParty(m));
+            message.On<S_BAN_PARTY_MEMBER>(m => UpdateParty(m));
+            message.On<S_PARTY_MEMBER_LIST>(m => UpdateParty(m));
         }
 
         public bool MyParty(Player player)
@@ -92,6 +116,18 @@ namespace Tera.Game
             if (player == null) return false;
             return _currentParty.Contains(Tuple.Create(player.ServerId, player.PlayerId)) ||
                    player.User == _entityTracker.MeterUser;
+        }
+
+        public List<UserEntity> PartyList()
+        {
+            List<UserEntity> list = new List<UserEntity>();
+            _currentParty.ForEach(x =>
+                {
+                    Player player;
+                    if (_playerById.TryGetValue(x, out player)) list.Add(player.User);
+                });
+            if (_entityTracker.MeterUser!=null)list.Add(_entityTracker.MeterUser);
+            return list;
         }
 
         public Player Me()

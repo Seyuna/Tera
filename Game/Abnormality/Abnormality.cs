@@ -20,10 +20,14 @@ namespace Tera.Game.Abnormality
             FirstHit = ticks;
             if (HotDot.Name == "") return;
             _abnormalityTracker = abnormalityTracker;
-            RegisterBuff();
-            RegisterEnduranceDebuff();
+            RegisterBuff(ticks);
+            RegisterEnduranceDebuff(ticks);
         }
 
+        public Abnormality()  //defaultempty
+        {
+            Duration = int.MinValue;
+        }
         public HotDot HotDot { get; }
         public EntityId Source { get; }
         public int Stack { get; private set; }
@@ -34,8 +38,9 @@ namespace Tera.Game.Abnormality
 
         public long LastApply { get; private set; }
 
-        public long FirstHit { get; }
+        public long FirstHit { get; private set; }
 
+        public long TimeBeforeEnd => Duration != 0 ? FirstHit - DateTime.UtcNow.Ticks + (long)Duration*10000000 : long.MaxValue;
         public long TimeBeforeApply => DateTime.UtcNow.Ticks - LastApply - HotDot.Tick*10000000;
 
         public void Apply(int amount, bool critical, bool isHp, long time)
@@ -82,7 +87,7 @@ namespace Tera.Game.Abnormality
         }
 
 
-        private void RegisterEnduranceDebuff()
+        private void RegisterEnduranceDebuff(long ticks)
         {
             if (!HotDot.Debuff) return;
             var entityGame = _abnormalityTracker.EntityTracker.GetOrPlaceholder(Target);
@@ -100,17 +105,17 @@ namespace Tera.Game.Abnormality
                 {
                     return;
                 }
-                var abnormalityInitDuration = new AbnormalityDuration(user.RaceGenderClass.Class, FirstHit);
+                var abnormalityInitDuration = new AbnormalityDuration(user.RaceGenderClass.Class, ticks, Stack);
                 _abnormalityTracker.AbnormalityStorage.AbnormalityTime(game).Add(HotDot, abnormalityInitDuration);
                 _enduranceDebuffRegistered = true;
                 return;
             }
 
-            _abnormalityTracker.AbnormalityStorage.AbnormalityTime(game)[HotDot].Start(FirstHit);
+            _abnormalityTracker.AbnormalityStorage.AbnormalityTime(game)[HotDot].Start(ticks, Stack);
             _enduranceDebuffRegistered = true;
         }
 
-        private void RegisterBuff()
+        private void RegisterBuff(long ticks)
         {
             if (!HotDot.Buff) return;
             var userEntity = _abnormalityTracker.EntityTracker.GetOrNull(Target);
@@ -133,12 +138,12 @@ namespace Tera.Game.Abnormality
                 {
                     playerClass = ((UserEntity) npcEntity).RaceGenderClass.Class;
                 }
-                var abnormalityInitDuration = new AbnormalityDuration(playerClass, FirstHit);
+                var abnormalityInitDuration = new AbnormalityDuration(playerClass, ticks, Stack);
                 _abnormalityTracker.AbnormalityStorage.AbnormalityTime(player).Add(HotDot, abnormalityInitDuration);
                 _buffRegistered = true;
                 return;
             }
-            _abnormalityTracker.AbnormalityStorage.AbnormalityTime(player)[HotDot].Start(FirstHit);
+            _abnormalityTracker.AbnormalityStorage.AbnormalityTime(player)[HotDot].Start(ticks, Stack);
             _buffRegistered = true;
         }
 
@@ -155,10 +160,13 @@ namespace Tera.Game.Abnormality
             _abnormalityTracker.AbnormalityStorage.AbnormalityTime(player)[HotDot].End(lastTicks);
         }
 
-        public void Refresh(int stackCounter, int duration, long time)
+        public void Refresh(int stackCounter, int duration, long ticks)
         {
             Stack = stackCounter;
+            FirstHit = ticks;
             Duration = duration/1000;
+            RegisterBuff(ticks);
+            RegisterEnduranceDebuff(ticks);
         }
     }
 }

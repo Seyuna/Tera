@@ -8,13 +8,13 @@ namespace Tera.Game
 {
     public class AbnormalityTracker
     {
-        private readonly Dictionary<EntityId, List<Abnormality.Abnormality>> _abnormalities =
-            new Dictionary<EntityId, List<Abnormality.Abnormality>>();
+        private Dictionary<EntityId, List<Abnormality.Abnormality>> _abnormalities = new Dictionary<EntityId, List<Abnormality.Abnormality>>();
 
         internal AbnormalityStorage AbnormalityStorage;
         internal EntityTracker EntityTracker;
         internal HotDotDatabase HotDotDatabase;
         internal PlayerTracker PlayerTracker;
+        internal CharmTracker CharmTracker;
         public Action<SkillResult> UpdateDamageTracker;
 
         public AbnormalityTracker(EntityTracker entityTracker, PlayerTracker playerTracker,
@@ -25,9 +25,10 @@ namespace Tera.Game
             HotDotDatabase = hotDotDatabase;
             UpdateDamageTracker = update;
             AbnormalityStorage = abnormalityStorage;
+            CharmTracker = new CharmTracker(this);
         }
 
-        public void RegisterNpcStatus(SNpcStatus npcStatus)
+        public void Update(SNpcStatus npcStatus)
         {
             RegisterAggro(npcStatus);
             if (npcStatus.Enraged)
@@ -62,7 +63,7 @@ namespace Tera.Game
                 AbnormalityStorage.Death(player).End(ticks);
         }
 
-        public void RegisterDead(SCreatureLife message)
+        public void Update(SCreatureLife message)
         {
             RegisterDead(message.User, message.Time.Ticks, message.Dead);
         }
@@ -106,7 +107,7 @@ namespace Tera.Game
             }
         }
 
-        public void AddAbnormality(SAbnormalityBegin message)
+        public void Update(SAbnormalityBegin message)
         {
             AddAbnormality(message.TargetId, message.SourceId, message.Duration, message.Stack, message.AbnormalityId,
                 message.Time.Ticks);
@@ -131,7 +132,7 @@ namespace Tera.Game
                     this));
         }
 
-        public void RefreshAbnormality(SAbnormalityRefresh message)
+        public void Update(SAbnormalityRefresh message)
         {
             if (!_abnormalities.ContainsKey(message.TargetId))
             {
@@ -154,6 +155,15 @@ namespace Tera.Game
             }
             var abnormalityTarget = _abnormalities[target];
             return abnormalityTarget.Any(t => t.HotDot == dot);
+        }
+        public long AbnormalityTimeLeft(EntityId target, HotDot.Types dotype)
+        {
+            if (!_abnormalities.ContainsKey(target))
+            {
+                return 0;
+            }
+            var abnormalityTarget = _abnormalities[target];
+            return abnormalityTarget.Where(t => t.HotDot.Effects.Any(x=>x.Type==dotype)).DefaultIfEmpty(new Abnormality.Abnormality()).Max(x=>x.TimeBeforeEnd);
         }
 
         public void DeleteAbnormality(EntityId target, int abnormalityId, long ticks)
@@ -181,7 +191,7 @@ namespace Tera.Game
             _abnormalities[target] = abnormalityUser;
         }
 
-        public void DeleteAbnormality(SAbnormalityEnd message)
+        public void Update(SAbnormalityEnd message)
         {
             DeleteAbnormality(message.TargetId, message.AbnormalityId, message.Time.Ticks);
         }
@@ -230,7 +240,11 @@ namespace Tera.Game
             }
 
             var abnormalities = _abnormalities[target];
-            abnormalities = abnormalities.Where(x=>x.Source==EntityTracker.MeterUser.Id || x.Target==EntityTracker.MeterUser.Id).OrderByDescending(o => o.TimeBeforeApply).ToList();
+            abnormalities =
+                abnormalities.Where(
+                    x => x.Source == EntityTracker.MeterUser.Id || x.Target == EntityTracker.MeterUser.Id)
+                    .OrderByDescending(o => o.TimeBeforeApply)
+                    .ToList();
 
             foreach (var abnormality in abnormalities)
             {
@@ -268,6 +282,117 @@ namespace Tera.Game
                 message.Time.Ticks);
             var user = EntityTracker.GetOrPlaceholder(message.TargetId) as UserEntity;
             RegisterSlaying(user, message.Slaying, message.Time.Ticks);
+        }
+
+        public void Update(SPartyMemberCharmAdd message)
+        {
+            var player = PlayerTracker.GetOrNull(message.ServerId, message.PlayerId);
+            if (player == null) return;
+            CharmTracker.CharmAdd(player.User.Id, message.CharmId, message.Status, message.Time.Ticks);
+        }
+
+        public void Update(SResetCharmStatus message)
+        {
+            CharmTracker.CharmReset(message.TargetId, message.Charms, message.Time.Ticks);
+        }
+
+        public void Update(SAddCharmStatus message)
+        {
+            CharmTracker.CharmAdd(message.TargetId, message.CharmId, message.Status, message.Time.Ticks);
+        }
+
+        public void Update(SEnableCharmStatus message)
+        {
+            CharmTracker.CharmEnable(EntityTracker.MeterUser.Id, message.CharmId, message.Time.Ticks);
+        }
+
+        public void Update(SPartyMemberCharmDel message)
+        {
+            var player = PlayerTracker.GetOrNull(message.ServerId, message.PlayerId);
+            if (player == null) return;
+            CharmTracker.CharmDel(player.User.Id, message.CharmId, message.Time.Ticks);
+        }
+
+        public void Update(SPartyMemberCharmEnable message)
+        {
+            var player = PlayerTracker.GetOrNull(message.ServerId, message.PlayerId);
+            if (player == null) return;
+            CharmTracker.CharmEnable(player.User.Id, message.CharmId, message.Time.Ticks);
+        }
+
+        public void Update(SPartyMemberCharmReset message)
+        {
+            var player = PlayerTracker.GetOrNull(message.ServerId, message.PlayerId);
+            if (player == null) return;
+            CharmTracker.CharmReset(player.User.Id, message.Charms, message.Time.Ticks);
+        }
+        public void Update(SRemoveCharmStatus message)
+        {
+            CharmTracker.CharmDel(EntityTracker.MeterUser.Id, message.CharmId, message.Time.Ticks);
+        }
+
+        public void Update(SDespawnUser message)
+        {
+            CharmTracker.CharmReset(message.User, new List<CharmStatus>(), message.Time.Ticks);
+            DeleteAbnormality(message);
+        }
+        public void Update(SDespawnNpc message)
+        {
+            StopAggro(message);
+            DeleteAbnormality(message);
+        }
+        public void Update(SpawnUserServerMessage message)
+        {
+            RegisterDead(message.Id, message.Time.Ticks, message.Dead);
+        }
+        public void Update(SpawnMeServerMessage message)
+        {
+            AbnormalityStorage.EndAll(message.Time.Ticks);
+            _abnormalities = new Dictionary<EntityId, List<Abnormality.Abnormality>>();
+            CharmTracker = new CharmTracker(this);
+            RegisterDead(message.Id, message.Time.Ticks, message.Dead);
+        }
+        public void Update(S_PLAYER_STAT_UPDATE message)
+        {
+            RegisterSlaying(EntityTracker.MeterUser, message.Slaying, message.Time.Ticks);
+        }
+        public void Update(S_PARTY_MEMBER_STAT_UPDATE message)
+        {
+            var user = PlayerTracker.GetOrNull(message.ServerId, message.PlayerId);
+            if (user == null) return;
+            RegisterSlaying(user.User, message.Slaying, message.Time.Ticks);
+        }
+        public void Update(SPartyMemberChangeHp message)
+        {
+            var user = PlayerTracker.GetOrNull(message.ServerId, message.PlayerId);
+            if (user == null) return;
+            RegisterSlaying(user.User, message.Slaying, message.Time.Ticks);
+        }
+
+        public void Update(ParsedMessage message)
+        {
+            message.On<S_PLAYER_STAT_UPDATE>(x => Update(x));
+            message.On<S_PARTY_MEMBER_STAT_UPDATE>(x => Update(x));
+            message.On<SPartyMemberChangeHp>(x => Update(x));
+            message.On<SCreatureChangeHp>(x => Update(x));
+            message.On<SPlayerChangeMp>(x => Update(x));
+            message.On<SDespawnUser>(x => Update(x));
+            message.On<SRemoveCharmStatus>(x => Update(x));
+            message.On<SPartyMemberCharmReset>(x => Update(x));
+            message.On<SPartyMemberCharmEnable>(x => Update(x));
+            message.On<SPartyMemberCharmDel>(x => Update(x));
+            message.On<SEnableCharmStatus>(x => Update(x));
+            message.On<SAddCharmStatus>(x => Update(x));
+            message.On<SResetCharmStatus>(x => Update(x));
+            message.On<SPartyMemberCharmAdd>(x => Update(x));
+            message.On<SAbnormalityEnd>(x => Update(x));
+            message.On<SAbnormalityRefresh>(x => Update(x));
+            message.On<SAbnormalityBegin>(x => Update(x));
+            message.On<SpawnMeServerMessage>(x => Update(x));
+            message.On<SDespawnNpc>(x => Update(x));
+            message.On<SCreatureLife>(x => Update(x));
+            message.On<SNpcStatus>(x => Update(x));
+            message.On<SpawnUserServerMessage>(x => Update(x));
         }
     }
 }
