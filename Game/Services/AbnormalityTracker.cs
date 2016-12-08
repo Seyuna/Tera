@@ -109,7 +109,7 @@ namespace Tera.Game
         public event AbnormalityEvent AbnormalityAdded;
         public event AbnormalityEvent AbnormalityRemoved;
 
-        public delegate void AbnormalityEvent(EntityId target, int abnormalityId);
+        public delegate void AbnormalityEvent(EntityId target, int abnormalityId, int stack=0);
 
         public void Update(SAbnormalityBegin message)
         {
@@ -135,7 +135,7 @@ namespace Tera.Game
                 //dont add existing abnormalities since we don't delete them all, that may cause many untrackable issues.
                 _abnormalities[target].Add(new Abnormality.Abnormality(hotdot, source, target, duration, stack, ticks,
                     this));
-                AbnormalityAdded?.Invoke(target, abnormalityId);
+                AbnormalityAdded?.Invoke(target, abnormalityId, stack);
             }
         }
 
@@ -149,28 +149,18 @@ namespace Tera.Game
             foreach (var abnormality in abnormalityUser)
             {
                 if (abnormality.HotDot.Id != message.AbnormalityId) continue;
+                if (abnormality.Stack<message.StackCounter) AbnormalityAdded?.Invoke(message.TargetId, message.AbnormalityId, message.StackCounter);
                 abnormality.Refresh(message.StackCounter, message.Duration, message.Time.Ticks);
                 return;
             }
         }
 
-        public bool AbnormalityExist(EntityId target, int id)
-        {
-            if (!_abnormalities.ContainsKey(target))
-            {
-                return false;
-            }
-            var abnormalityTarget = _abnormalities[target];
-            return abnormalityTarget.Any(t => t.HotDot.Id == id);
-        }
-        public int AbnormalityCount(EntityId target)
-        {
-            if (!_abnormalities.ContainsKey(target))
-            {
-                return 0;
-            }
-            return _abnormalities[target].Count;
-        }
+        public bool HaveAbnormalities(EntityId target) => _abnormalities.ContainsKey(target) && _abnormalities[target].Any();
+
+        public bool AbnormalityExist(EntityId target, int abnormalityid) => _abnormalities.ContainsKey(target) && _abnormalities[target].Any(x=>x.HotDot.Id==abnormalityid);
+        /**
+         * Return time left for the abnormality. Or -1 if no abnormality found
+         */
         public long AbnormalityTimeLeft(EntityId target, HotDot.Types dotype)
         {
             if (!_abnormalities.ContainsKey(target))
@@ -179,38 +169,49 @@ namespace Tera.Game
             }
             var abnormalityTarget = _abnormalities[target];
             var abnormalities = abnormalityTarget.Where(t => t.HotDot.Effects.Any(x => x.Type == dotype));
-            if(abnormalities.Count() == 0)
+            if(!abnormalities.Any())
             {
                 return -1;
             }
             return abnormalities.Max(x => x.TimeBeforeEnd);
        }
 
-        public bool AbnormalityExist(EntityId target, HotDot.Types dotype)
-        {
-            if (!_abnormalities.ContainsKey(target))
-            {
-                return false;
-            }
-            var abnormalityTarget = _abnormalities[target];
-            return abnormalityTarget.Any(t => t.HotDot.Effects.Any(x => x.Type == dotype));
-        }
-
-        public long AbnormalityTimeLeft(EntityId target, int abnormalityId)
+        /**
+         * Return time left for the abnormality. Or -1 if no abnormality found
+         */
+        public long AbnormalityTimeLeft(EntityId target, int abnormalityId, int stack=0)
         {
             if (!_abnormalities.ContainsKey(target))
             {
                 return -1;
             }
             var abnormalityTarget = _abnormalities[target];
-            var abnormalities = abnormalityTarget.Where(t => t.HotDot.Id == abnormalityId);
-            if(abnormalities.Count() == 0)
+            var i = abnormalityTarget.FindIndex(t => t.HotDot.Id == abnormalityId && t.Stack>=stack);
+            if (i == -1)
             {
                 return -1;
             }
-            return abnormalities.Max(x => x.TimeBeforeEnd);
+            return abnormalityTarget[i].TimeBeforeEnd;
         }
 
+        /**
+         * Return current stack count for the abnormality. Or -1 if no abnormality found
+         */
+        public int Stack(EntityId target, int abnormalityId)
+        {
+            if (!_abnormalities.ContainsKey(target))
+            {
+                return -1;
+            }
+            var abnormalityTarget = _abnormalities[target];
+            var i = abnormalityTarget.FindIndex(t => t.HotDot.Id == abnormalityId);
+            if (i==-1)
+            {
+                return -1;
+            }
+            return abnormalityTarget[i].Stack;
+
+        }
         public void DeleteAbnormality(EntityId target, int abnormalityId, long ticks)
         {
             if (!_abnormalities.ContainsKey(target))
@@ -333,6 +334,7 @@ namespace Tera.Game
         public void Update(SDespawnUser message)
         {
             DeleteAbnormality(message);
+
         }
         public void Update(SDespawnNpc message)
         {

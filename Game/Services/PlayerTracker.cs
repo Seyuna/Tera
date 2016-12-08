@@ -19,6 +19,7 @@ namespace Tera.Game
             entityTracker.EntityUpdated += Update;
         }
 
+
         public IEnumerator<Player> GetEnumerator()
         {
             return _playerById.Values.GetEnumerator();

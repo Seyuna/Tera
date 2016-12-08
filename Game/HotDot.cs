@@ -62,15 +62,18 @@ namespace Tera.Game
             Block = 210, //frontal block ? Not sure, the ability to use block, or blocking stance
             HPLoss = 221, //loss hp at the and of debuff
             Absorb = 227, //or may be I've messed it with 281
+            Resurrect = 229,
             Mark = 231, // Velik's Mark/Curse of Kaprima = increase received damage when marked
             CastSpeed = 236,
             CrystalBind = 237,
             CCrystalBind = 249,
             DropUp=255,
             Range = 259, //increase melee range? method 0 value 0.1= +10%
+            HPChange2 = 260, //used by instant death on Curse stacks.
             //264 = redirect abnormality, value= new abnormality, bugged due to wrong float format in xml.
             Rage = 280, //tick - RageChange, notick (one change) - Rage 
             SuperArmor = 283,
+            ForceCrit = 316, //archer's Find Weakness = next hit will trigger critpower crystalls
             Charm = 65535
         }
 
