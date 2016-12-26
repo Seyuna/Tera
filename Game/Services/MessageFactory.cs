@@ -11,7 +11,7 @@ namespace Tera.Game
     public class MessageFactory
     {
         private static readonly Delegate UnknownMessageDelegate = Helpers.Contructor<Func<TeraMessageReader, UnknownMessage>>();
-        private static readonly Dictionary<string, Delegate> OpcodeNameToType = new Dictionary<string, Delegate> {{"C_CHECK_VERSION", Helpers.Contructor<Func<TeraMessageReader, C_CHECK_VERSION>>() } };
+        private static readonly Dictionary<ushort, Delegate> OpcodeNameToType = new Dictionary<ushort, Delegate> {{ 19900, Helpers.Contructor<Func<TeraMessageReader, C_CHECK_VERSION>>() } };
         private static readonly Dictionary<string, Delegate> CoreServices = new Dictionary<string, Delegate>
         {
             {"C_CHECK_VERSION", Helpers.Contructor<Func<TeraMessageReader,C_CHECK_VERSION>>()},
@@ -65,6 +65,9 @@ namespace Tera.Game
 
         private static readonly Dictionary<string, Delegate> ChatServices = new Dictionary<string, Delegate>
         {
+            {"S_UPDATE_NPCGUILD", Helpers.Contructor<Func<TeraMessageReader,S_UPDATE_NPCGUILD>>()},
+            {"S_AVAILABLE_EVENT_MATCHING_LIST", Helpers.Contructor<Func<TeraMessageReader,S_AVAILABLE_EVENT_MATCHING_LIST>>()},
+            {"S_SYSTEM_MESSAGE", Helpers.Contructor<Func<TeraMessageReader,S_SYSTEM_MESSAGE>>()},
             {"S_START_COOLTIME_SKILL", Helpers.Contructor<Func<TeraMessageReader,S_START_COOLTIME_SKILL>>()},
             {"S_CREST_MESSAGE", Helpers.Contructor<Func<TeraMessageReader,S_CREST_MESSAGE>>()},
             {"S_CHAT", Helpers.Contructor<Func<TeraMessageReader,S_CHAT>>()},
@@ -83,6 +86,7 @@ namespace Tera.Game
 
 
         private readonly OpCodeNamer _opCodeNamer;
+        private readonly OpCodeNamer _sysMsgNamer;
         public string Version;
         public bool ChatEnabled {
             get { return _chatEnabled; }
@@ -90,25 +94,22 @@ namespace Tera.Game
             {
                 _chatEnabled = value;
                 OpcodeNameToType.Clear();
-                CoreServices.ToList().ForEach(x => OpcodeNameToType[x.Key] = x.Value);
-                if (_chatEnabled) ChatServices.ToList().ForEach(x => OpcodeNameToType[x.Key] = x.Value);
+                CoreServices.ToList().ForEach(x => OpcodeNameToType[_opCodeNamer.GetCode(x.Key)] = x.Value);
+                if (_chatEnabled) ChatServices.ToList().ForEach(x => OpcodeNameToType[_opCodeNamer.GetCode(x.Key)] = x.Value);
             }
         }
 
         private bool _chatEnabled;
 
-        public MessageFactory(OpCodeNamer opCodeNamer, string version, bool chatEnabled=false)
+        public MessageFactory(OpCodeNamer opCodeNamer, string version, bool chatEnabled=false, OpCodeNamer sysMsgNamer=null)
         {
-            OpcodeNameToType.Clear();
-            CoreServices.ToList().ForEach(x=>OpcodeNameToType[x.Key]=x.Value);
-            if (chatEnabled) ChatServices.ToList().ForEach(x => OpcodeNameToType[x.Key] = x.Value);
             _opCodeNamer = opCodeNamer;
+            _sysMsgNamer = sysMsgNamer;
+            OpcodeNameToType.Clear();
+            CoreServices.ToList().ForEach(x=>OpcodeNameToType[_opCodeNamer.GetCode(x.Key)]=x.Value);
+            if (chatEnabled) ChatServices.ToList().ForEach(x => OpcodeNameToType[_opCodeNamer.GetCode(x.Key)] = x.Value);
             Version = version;
             _chatEnabled = chatEnabled;
-            foreach (var name in OpcodeNameToType.Keys)
-            {
-                opCodeNamer.GetCode(name);
-            }
         }
 
         public MessageFactory()
@@ -117,19 +118,18 @@ namespace Tera.Game
             Version = "Unknown";
         }
 
-        private ParsedMessage Instantiate(string opCodeName, TeraMessageReader reader)
+        private ParsedMessage Instantiate(ushort opCode, TeraMessageReader reader)
         {
             Delegate type;
-            if (!OpcodeNameToType.TryGetValue(opCodeName, out type))
+            if (!OpcodeNameToType.TryGetValue(opCode, out type))
                 type = UnknownMessageDelegate;
             return (ParsedMessage) type.DynamicInvoke(reader);
         }
 
         public ParsedMessage Create(Message message)
         {
-            var reader = new TeraMessageReader(message, _opCodeNamer, Version);
-            var opCodeName = _opCodeNamer.GetName(message.OpCode);
-            return Instantiate(opCodeName, reader);
+            var reader = new TeraMessageReader(message, _opCodeNamer, Version, _sysMsgNamer);
+            return Instantiate(message.OpCode, reader);
         }
     }
 }
