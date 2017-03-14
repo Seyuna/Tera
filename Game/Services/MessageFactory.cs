@@ -21,6 +21,7 @@ namespace Tera.Game
             {"S_SPAWN_NPC", Helpers.Contructor<Func<TeraMessageReader,SpawnNpcServerMessage>>()},
             {"S_SPAWN_PROJECTILE", Helpers.Contructor<Func<TeraMessageReader,SpawnProjectileServerMessage>>()},
             {"S_LOGIN", Helpers.Contructor<Func<TeraMessageReader,LoginServerMessage>>()},
+//            {"S_GUILD_INFO", Helpers.Contructor<Func<TeraMessageReader,S_GUILD_INFO>>()},
             {"S_TARGET_INFO", Helpers.Contructor<Func<TeraMessageReader,STargetInfo>>()},
             {"S_START_USER_PROJECTILE", Helpers.Contructor<Func<TeraMessageReader,StartUserProjectileServerMessage>>()},
             {"S_CREATURE_CHANGE_HP", Helpers.Contructor<Func<TeraMessageReader,SCreatureChangeHp>>()},
@@ -47,6 +48,7 @@ namespace Tera.Game
             {"S_USER_LOCATION", Helpers.Contructor<Func<TeraMessageReader,S_USER_LOCATION>>()},
             {"C_PLAYER_LOCATION", Helpers.Contructor<Func<TeraMessageReader,C_PLAYER_LOCATION>>()},
             {"S_INSTANT_MOVE", Helpers.Contructor<Func<TeraMessageReader,S_INSTANT_MOVE>>()},
+            {"S_INSTANT_DASH", Helpers.Contructor<Func<TeraMessageReader,S_INSTANT_DASH>>()},
             {"S_ACTION_STAGE", Helpers.Contructor<Func<TeraMessageReader,S_ACTION_STAGE>>()},
             {"S_ACTION_END", Helpers.Contructor<Func<TeraMessageReader,S_ACTION_END>>()},
             {"S_CHANGE_DESTPOS_PROJECTILE", Helpers.Contructor<Func<TeraMessageReader,S_CHANGE_DESTPOS_PROJECTILE>>()},
@@ -65,6 +67,7 @@ namespace Tera.Game
 
         private static readonly Dictionary<string, Delegate> ChatServices = new Dictionary<string, Delegate>
         {
+            {"S_LOAD_TOPO", Helpers.Contructor<Func<TeraMessageReader,S_LOAD_TOPO>>()},
             {"S_UPDATE_NPCGUILD", Helpers.Contructor<Func<TeraMessageReader,S_UPDATE_NPCGUILD>>()},
             {"S_AVAILABLE_EVENT_MATCHING_LIST", Helpers.Contructor<Func<TeraMessageReader,S_AVAILABLE_EVENT_MATCHING_LIST>>()},
             {"S_SYSTEM_MESSAGE", Helpers.Contructor<Func<TeraMessageReader,S_SYSTEM_MESSAGE>>()},
@@ -87,12 +90,14 @@ namespace Tera.Game
 
         private readonly OpCodeNamer _opCodeNamer;
         private readonly OpCodeNamer _sysMsgNamer;
-        public string Version;
+        public string Region;
+        public uint Version;
         public bool ChatEnabled {
             get { return _chatEnabled; }
             set
             {
                 _chatEnabled = value;
+                if (OpcodeNameToType.Count==1) return;
                 OpcodeNameToType.Clear();
                 CoreServices.ToList().ForEach(x => OpcodeNameToType[_opCodeNamer.GetCode(x.Key)] = x.Value);
                 if (_chatEnabled) ChatServices.ToList().ForEach(x => OpcodeNameToType[_opCodeNamer.GetCode(x.Key)] = x.Value);
@@ -101,7 +106,7 @@ namespace Tera.Game
 
         private bool _chatEnabled;
 
-        public MessageFactory(OpCodeNamer opCodeNamer, string version, bool chatEnabled=false, OpCodeNamer sysMsgNamer=null)
+        public MessageFactory(OpCodeNamer opCodeNamer, string region, uint version, bool chatEnabled=false, OpCodeNamer sysMsgNamer=null)
         {
             _opCodeNamer = opCodeNamer;
             _sysMsgNamer = sysMsgNamer;
@@ -109,13 +114,15 @@ namespace Tera.Game
             CoreServices.ToList().ForEach(x=>OpcodeNameToType[_opCodeNamer.GetCode(x.Key)]=x.Value);
             if (chatEnabled) ChatServices.ToList().ForEach(x => OpcodeNameToType[_opCodeNamer.GetCode(x.Key)] = x.Value);
             Version = version;
+            Region = region;
             _chatEnabled = chatEnabled;
         }
 
         public MessageFactory()
         {
             _opCodeNamer = new OpCodeNamer(new Dictionary<ushort,string>{{19900 , "C_CHECK_VERSION" }} );
-            Version = "Unknown";
+            Version = 0;
+            Region = "Unknown";
         }
 
         private ParsedMessage Instantiate(ushort opCode, TeraMessageReader reader)

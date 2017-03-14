@@ -12,19 +12,21 @@ namespace Tera.Game
     // Tracks which entities we have seen so far and what their properties are
     public class EntityTracker : IEnumerable<Entity>
     {
-        private readonly Dictionary<EntityId, Entity> _dictionary = new Dictionary<EntityId, Entity>();
+        private readonly Dictionary<EntityId, Entity> _entities = new Dictionary<EntityId, Entity>();
+        private UserLogoTracker _userLogoTracker;
         private readonly NpcDatabase _npcDatabase;
 
-        public EntityTracker(NpcDatabase npcDatabase)
+        public EntityTracker(NpcDatabase npcDatabase, UserLogoTracker userLogoTracker=null)
         {
             _npcDatabase = npcDatabase;
+            _userLogoTracker = userLogoTracker;
         }
 
         public UserEntity MeterUser { get; private set; }
 
         public IEnumerator<Entity> GetEnumerator()
         {
-            return _dictionary.Values.GetEnumerator();
+            return _entities.Values.GetEnumerator();
         }
 
         IEnumerator IEnumerable.GetEnumerator()
@@ -60,7 +62,7 @@ namespace Tera.Game
 
         internal void Register(Entity newEntity)
         {
-            _dictionary[newEntity.Id] = newEntity;
+            _entities[newEntity.Id] = newEntity;
             OnEntityUpdated(newEntity);
         }
 
@@ -191,6 +193,20 @@ namespace Tera.Game
             //Debug.WriteLine($"{entity.Position} {entity.Heading}");
         }
 
+        public void Update(S_INSTANT_DASH m)
+        {
+            var entity = GetOrNull(m.Entity);
+            if (entity == null) return;
+            entity.Position = m.Position;
+            entity.Finish = m.Position;
+            entity.Heading = m.Heading;
+            entity.Speed = 0;
+            entity.StartTime = 0;
+            entity.EndAngle = entity.Heading;
+            entity.EndTime = 0;
+            //Debug.WriteLine($"{entity.Position} {entity.Heading}");
+        }
+
         public void Update(S_CREATURE_ROTATE m)
         {
             var entity = GetOrNull(m.Entity);
@@ -265,6 +281,7 @@ namespace Tera.Game
             message.On<S_ACTION_END>(x => Update(x));
             message.On<SCreatureLife>(x => Update(x));
             message.On<S_INSTANT_MOVE>(x => Update(x));
+            message.On<S_INSTANT_DASH>(x => Update(x));
             message.On<S_CREATURE_ROTATE>(x => Update(x));
             message.On<EachSkillResultServerMessage>(x => Update(x));
             message.On<SNpcLocation>(x => Update(x));
@@ -275,13 +292,14 @@ namespace Tera.Game
         private Entity LoginMe(LoginServerMessage m)
         {
             MeterUser = new UserEntity(m);
+            MeterUser.GuildName = _userLogoTracker?.GetGuildName(m.PlayerId)??"";
             return MeterUser;
         }
 
         public Entity GetOrNull(EntityId id)
         {
             Entity entity;
-            _dictionary.TryGetValue(id, out entity);
+            _entities.TryGetValue(id, out entity);
             return entity;
         }
 
