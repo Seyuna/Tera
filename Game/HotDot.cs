@@ -14,7 +14,13 @@ namespace Tera.Game
             perc = 3, // each tick  HP += MaxHP*HPChange; MP += MaxMP*MPChange
             setp = 4 // ?set % stat value
         }
-
+        public enum AbnormalityType
+        {
+            Debuff = 1,
+            DOT = 2,
+            Stun = 3,
+            Buff = 4
+        }
         public enum Types
         {
             Unknown = 0,
@@ -65,6 +71,7 @@ namespace Tera.Game
             Resurrect = 229,
             Mark = 231, // Velik's Mark/Curse of Kaprima = increase received damage when marked
             CastSpeed = 236,
+            SkillCastSpeed = 235, //Increases Shield Barrage speed after 8 successful hits with Combo Attack.
             CrystalBind = 237,
             CCrystalBind = 249,
             DropUp=255,
@@ -85,11 +92,13 @@ namespace Tera.Game
 
         }
         public HotDot(int id, string type, double hp, double mp, double amount, DotType method, int time, int tick,
-            string name, string itemName, string tooltip, string iconName)
+            string name, string itemName, string tooltip, string iconName, AbnormalityType abType, bool isBuff)
         {
             Id = id;
             Types rType;
             rType = Enum.TryParse(type, out rType) ? rType : Types.Unknown;
+            AbType = abType;
+            IsBuff = isBuff;
             Hp = hp;
             Mp = mp;
             Time = time;
@@ -145,6 +154,8 @@ namespace Tera.Game
         public bool Buff { get; private set; }
         public bool Debuff { get; private set; }
         public bool HPMPChange { get; private set; }
+        public AbnormalityType AbType { get; set; }
+        public bool IsBuff { get; set; }//if false => purple hp bar
 
         public override bool Equals(object obj)
         {

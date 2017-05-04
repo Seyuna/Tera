@@ -32,6 +32,7 @@ namespace Tera.Game.Messages
             ChooseLootDialog = 20, //(aka: goldfinger + elion token + ...)
             BankOpen = 26,
             Craft = 31,
+            Personalize = 32,
             TeraClubDarkanFlameUse = 33, // or merge multiple item together
             Enchant = 34,
             OpenBox = 43,
@@ -39,6 +40,7 @@ namespace Tera.Game.Messages
             LootBox = 52,
             TeraClubMapTeleporter = 53,
             TeraClubTravelJournalTeleporter = 54,
+            TeleporterToNearestCity = 71,
             Dressroom = 76
         }
 
