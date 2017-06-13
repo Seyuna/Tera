@@ -62,7 +62,7 @@ namespace Tera.Game
                 var abType = (HotDot.AbnormalityType)Enum.Parse(typeof(HotDot.AbnormalityType), values[2]);
                 var isBuff = bool.Parse(values[3]);
                 var method = (HotDot.DotType) Enum.Parse(typeof(HotDot.DotType), values[4]);
-                var time = int.Parse(values[5]);
+                var time = uint.Parse(values[5]);
                 var tick = int.Parse(values[6]);
                 var amount = double.Parse(values[7], CultureInfo.InvariantCulture);
                 var hp = type == "HPChange" ? amount : 0;
@@ -71,14 +71,15 @@ namespace Tera.Game
                 var itemName = values[10];
                 var tooltip = values[11];
                 var iconName = values[12];
+                var effectIcon = values[13];
                 if (_hotdots.ContainsKey(id))
                     _hotdots[id].Update(id, type, hp, mp, amount, method, time, tick, name, itemName, tooltip, iconName);
                 else
-                    _hotdots[id] = new HotDot(id, type, hp, mp, amount, method, time, tick, name, itemName, tooltip, iconName, abType, isBuff);
+                    _hotdots[id] = new HotDot(id, type, hp, mp, amount, method, time, tick, name, itemName, tooltip, iconName, abType, isBuff, effectIcon);
             }
-            _hotdots[(int)StaticallyUsedBuff.Enraged] = new HotDot((int)StaticallyUsedBuff.Enraged, "Endurance", 0, 0, 0, 0, 36000, 0, "Enrage", "", "", "enraged",HotDot.AbnormalityType.Debuff, true);
+            _hotdots[(int)StaticallyUsedBuff.Enraged] = new HotDot((int)StaticallyUsedBuff.Enraged, "Endurance", 0, 0, 0, 0, 36000, 0, "Enrage", "", "", "enraged", HotDot.AbnormalityType.Debuff, true, "enraged");
             _hotdots[(int)StaticallyUsedBuff.Slaying] = new HotDot((int)StaticallyUsedBuff.Slaying, "CritPower", 0, 0, 0, 0, 0, 0, "Slaying", "",
-                "'Slaying' crystal is working (if equipped) when player in this state.", "slaying",HotDot.AbnormalityType.Buff, true);
+                "'Slaying' crystal is working (if equipped) when player in this state.", "slaying",HotDot.AbnormalityType.Buff, true, "slaying");
 
             var shortnames = Path.Combine(folder, $"hotdot\\hotdot-short-{language}.tsv");
             if (File.Exists(shortnames))
